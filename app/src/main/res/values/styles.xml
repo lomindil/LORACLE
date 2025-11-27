@@ -1,0 +1,11 @@
+<resources>
+    <style name="Theme.Loracle" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <!-- Your colors -->
+        <item name="colorPrimary">@color/bg_dark</item>
+        <item name="colorPrimaryDark">@color/bg_dark</item>
+        <item name="colorAccent">@color/accent</item>
+
+        <!-- Required for MaterialComponents TextInputLayout -->
+        <item name="materialThemeOverlay">@style/ThemeOverlay.MaterialComponents</item>
+    </style>
+</resources>
