@@ -2,6 +2,7 @@ package com.example.loracle.network
 
 import android.os.Handler
 import android.os.Looper
+import com.example.loracle.managers.ChatSessionManager
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -11,7 +12,8 @@ import java.net.URL
 
 object OllamaClient {
 
-    private const val OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
+    // IMPORTANT: must include full endpoint
+    private const val OLLAMA_URL = "https://valene-downier-melodie.ngrok-free.dev/api/generate"
 
     interface StreamCallback {
         fun onToken(token: String)
@@ -24,13 +26,20 @@ object OllamaClient {
     fun sendStreamingMessage(message: String, callback: StreamCallback) {
         Thread {
             try {
+                // Load entire chat session as context
+                val history = ChatSessionManager.getContext()
+
+                // Build final prompt for LLM
+                val finalPrompt = "$history\nUSER: $message\nASSISTANT:"
+
+                // Build JSON request
                 val req = JSONObject().apply {
                     put("model", "qwen2.5:1.5b")
-                    put("prompt", message)  // Use "prompt" instead of "messages"
+                    put("prompt", finalPrompt)
                     put("stream", true)
-                    // Remove the "messages" array - Ollama uses simple prompt format
                 }
 
+                // Prepare HTTP
                 val conn = URL(OLLAMA_URL).openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json")
@@ -38,15 +47,17 @@ object OllamaClient {
                 conn.readTimeout = 30000
                 conn.doOutput = true
 
+                // Send request body
                 conn.outputStream.use { it.write(req.toString().toByteArray()) }
 
-                // Check response code first
+                // Error check
                 val responseCode = conn.responseCode
                 if (responseCode != HttpURLConnection.HTTP_OK) {
-                    ui.post { callback.onError("HTTP error: $responseCode - ${conn.responseMessage}") }
+                    ui.post { callback.onError("HTTP $responseCode: ${conn.responseMessage}") }
                     return@Thread
                 }
 
+                // Read streamed response
                 val reader = BufferedReader(InputStreamReader(conn.inputStream))
                 var line: String?
 
@@ -54,13 +65,14 @@ object OllamaClient {
                     val json = line!!.trim()
                     if (json.isEmpty()) continue
 
-                    val chunk = JSONObject(json)
+                    val obj = JSONObject(json)
 
-                    if (chunk.has("response")) {
-                        ui.post { callback.onToken(chunk.getString("response")) }
+                    if (obj.has("response")) {
+                        val token = obj.getString("response")
+                        ui.post { callback.onToken(token) }
                     }
 
-                    if (chunk.optBoolean("done", false)) {
+                    if (obj.optBoolean("done", false)) {
                         ui.post { callback.onComplete() }
                         break
                     }
@@ -72,4 +84,3 @@ object OllamaClient {
         }.start()
     }
 }
-
