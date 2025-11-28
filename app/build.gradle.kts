@@ -49,4 +49,6 @@ dependencies {
 
     // Core KTX (recommended)
     implementation("androidx.core:core-ktx:1.12.0")
+
+    implementation("ai.picovoice:porcupine-android:3.0.2")
 }

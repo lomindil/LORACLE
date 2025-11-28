@@ -8,6 +8,9 @@ import com.example.loracle.R
 import com.example.loracle.managers.SpeechRecognizerManager
 import com.example.loracle.managers.TTSManager
 import com.example.loracle.network.OllamaClient
+import android.content.Intent
+import com.example.loracle.services.WakeWordService
+
 
 
 class MainActivity : AppCompatActivity() {
@@ -28,6 +31,11 @@ class MainActivity : AppCompatActivity() {
 override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.activity_main)
+
+    // Start wake-word service
+    val serviceIntent = Intent(this, WakeWordService::class.java)
+    startForegroundService(serviceIntent)
+
 
     // 1. Ask for permission BEFORE anything else
     if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)

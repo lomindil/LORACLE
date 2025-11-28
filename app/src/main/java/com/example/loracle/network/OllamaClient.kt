@@ -11,7 +11,7 @@ import java.net.URL
 
 object OllamaClient {
 
-    private const val OLLAMA_URL = "https://297896a3cf2d.ngrok-free.app/api/generate"
+    private const val OLLAMA_URL = "http://127.0.0.1/api/generate"
 
     interface StreamCallback {
         fun onToken(token: String)
