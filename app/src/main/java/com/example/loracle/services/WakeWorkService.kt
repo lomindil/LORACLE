@@ -67,36 +67,44 @@ class WakeWordService : Service() {
         }
 
         try {
-            // Replace with your actual access key and keyword file
-            val accessKey = "FE4XtYxkL88dIgRAtb1ZHMFaFiAAIvg2LOUYBZ07mJC30IgFRQynaA==" // Get from Picovoice Console
-            val keywordPath = "android_asset://keywords/Lo-oracle_en_android_v3_0_0.ppn" // Your .ppn file
+            val accessKey = "FE4XtYxkL88dIgRAtb1ZHMFaFiAAIvg2LOUYBZ07mJC30IgFRQynaA=="
+            val keywordPath = "keywords/Lo-oracle_en_android_v3_0_0.ppn"
+
+            Log.d(TAG, "Initializing Porcupine with access key and keyword: $keywordPath")
 
             porcupineManager = PorcupineManager.Builder()
                 .setAccessKey(accessKey)
                 .setKeywordPath(keywordPath)
-                .setSensitivity(0.7f)
+                .setSensitivity(0.8f) // Increased sensitivity
                 .build(applicationContext, object : PorcupineManagerCallback {
                     override fun invoke(keywordIndex: Int) {
-                        Log.d(TAG, "Wake word detected!")
+                        Log.d(TAG, "WAKE WORD DETECTED - Triggering broadcast")
                         broadcastWakeWordDetected()
                     }
                 })
 
             startListening()
+            Log.d(TAG, "Porcupine initialized and listening for wake word")
 
         } catch (e: PorcupineException) {
             Log.e(TAG, "Error initializing Porcupine: ${e.message}")
+            e.printStackTrace()
         } catch (e: Exception) {
             Log.e(TAG, "Unexpected error: ${e.message}")
+            e.printStackTrace()
         }
     }
 
-    // ---------------------------------------------------------
     private fun broadcastWakeWordDetected() {
-        val intent = Intent("LORACLE_WAKEWORD_HIT")
-        // Set the package to make the broadcast explicit to your app only
-        intent.setPackage("com.example.loracle")
-        sendBroadcast(intent)
+        try {
+            Log.d(TAG, "Broadcasting wake word detection to MainActivity")
+            val intent = Intent("LORACLE_WAKEWORD_HIT")
+            intent.setPackage(packageName)
+            sendBroadcast(intent)
+            Log.d(TAG, "Wake word broadcast sent successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending wake word broadcast: ${e.message}")
+        }
     }
 
     // ---------------------------------------------------------
@@ -105,10 +113,17 @@ class WakeWordService : Service() {
             try {
                 porcupineManager?.start()
                 isListening = true
-                Log.d(TAG, "Started listening for wake word")
+                Log.d(TAG, "Successfully started listening for wake word")
+
+                // Test if audio is being processed
+                Log.d(TAG, "Audio system should now be processing microphone input")
+
             } catch (e: PorcupineException) {
                 Log.e(TAG, "Error starting Porcupine: ${e.message}")
+                e.printStackTrace()
             }
+        } else {
+            Log.d(TAG, "Already listening for wake word")
         }
     }
 

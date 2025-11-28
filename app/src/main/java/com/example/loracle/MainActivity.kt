@@ -12,6 +12,7 @@ import android.content.Context
 import android.content.IntentFilter
 import com.example.loracle.services.WakeWordService
 import android.os.Build
+import android.util.Log
 
 class MainActivity : AppCompatActivity() {
 
@@ -28,12 +29,16 @@ class MainActivity : AppCompatActivity() {
     private val REQUEST_AUDIO = 1
 
     // ---------------------------------------------------------
-    // Wake word receiver
-    // ---------------------------------------------------------
+// Wake word receiver
+// ---------------------------------------------------------
     private val wakeWordReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            Log.d("MainActivity", "WAKE WORD BROADCAST RECEIVED - Starting speech recognition")
             if (intent?.action == "LORACLE_WAKEWORD_HIT") {
+                Log.d("MainActivity", "Starting speech recognition from wake word")
                 speech.startListening()
+            } else {
+                Log.d("MainActivity", "Received broadcast with unknown action: ${intent?.action}")
             }
         }
     }
@@ -110,14 +115,15 @@ class MainActivity : AppCompatActivity() {
     // ---------------------------------------------------------
     override fun onResume() {
         super.onResume()
+        Log.d("MainActivity", "Registering wake word receiver...")
 
-        // FIX: Add the export flag for Android 13+
         val filter = IntentFilter("LORACLE_WAKEWORD_HIT")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(wakeWordReceiver, filter, RECEIVER_EXPORTED)
         } else {
             registerReceiver(wakeWordReceiver, filter)
         }
+        Log.d("MainActivity", "Wake word receiver registered")
     }
 
     override fun onPause() {
