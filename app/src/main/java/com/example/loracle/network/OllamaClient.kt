@@ -11,7 +11,7 @@ import java.net.URL
 
 object OllamaClient {
 
-    private const val OLLAMA_URL = "https://297896a3cf2d.ngrok-free.app/api/generate"
+    private const val OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 
     interface StreamCallback {
         fun onToken(token: String)
@@ -25,7 +25,7 @@ object OllamaClient {
         Thread {
             try {
                 val req = JSONObject().apply {
-                    put("model", "gemma:2b")
+                    put("model", "qwen2.5:1.5b")
                     put("prompt", message)  // Use "prompt" instead of "messages"
                     put("stream", true)
                     // Remove the "messages" array - Ollama uses simple prompt format
