@@ -5,79 +5,141 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Binder
 import android.os.Build
 import android.os.IBinder
-import androidx.core.app.NotificationCompat
-import ai.picovoice.porcupine.Porcupine
-import ai.picovoice.porcupine.PorcupineManager
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import ai.picovoice.porcupine.PorcupineException
+import ai.picovoice.porcupine.PorcupineManager
+import ai.picovoice.porcupine.PorcupineManagerCallback
+import com.example.loracle.R
 
 class WakeWordService : Service() {
 
+    private val TAG = "WakeWordService"
     private var porcupineManager: PorcupineManager? = null
+    private var isListening = false
 
-    override fun onCreate() {
-        super.onCreate()
-        startForegroundServiceNotification()
-        startWakeWordEngine()
+    companion object {
+        const val NOTIFICATION_ID = 1
+        const val CHANNEL_ID = "WakeWordServiceChannel"
     }
 
-    private fun startForegroundServiceNotification() {
-        val channelId = "wakeword_channel"
+    // ---------------------------------------------------------
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+        startForeground(NOTIFICATION_ID, createNotification())
+        initializePorcupine()
+    }
 
+    // ---------------------------------------------------------
+    private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "Wake Word Listener",
+            val serviceChannel = NotificationChannel(
+                CHANNEL_ID,
+                "Wake Word Service Channel",
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
+            manager.createNotificationChannel(serviceChannel)
         }
+    }
 
-        val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Loracle is listening…")
-            .setContentText("Wake word detection is active")
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+    // ---------------------------------------------------------
+    private fun createNotification(): Notification {
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Loracle")
+            .setContentText("Listening for wake word...")
+            .setSmallIcon(android.R.drawable.ic_media_play) // Use built-in Android icon
             .build()
-
-        startForeground(1, notification)
     }
 
-    private fun startWakeWordEngine() {
+    // ---------------------------------------------------------
+    private fun initializePorcupine() {
+        // Check audio permission
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED) {
+            Log.e(TAG, "Audio permission not granted")
+            return
+        }
+
         try {
-            porcupineManager = PorcupineManager(
-                keywordPaths = listOf("keyword.ppn"),    // your asset keyword
-                sensitivities = floatArrayOf(0.6f)
-            ) {
-                // Callback: wake word detected
-                Log.d("WakeWordService", "Wake word detected!")
-                // Start your app or activity here
-            }
+            // Replace with your actual access key and keyword file
+            val accessKey = "FE4XtYxkL88dIgRAtb1ZHMFaFiAAIvg2LOUYBZ07mJC30IgFRQynaA==" // Get from Picovoice Console
+            val keywordPath = "android_asset://keywords/Lo-oracle_en_android_v3_0_0.ppn" // Your .ppn file
 
-            porcupineManager!!.start()
+            porcupineManager = PorcupineManager.Builder()
+                .setAccessKey(accessKey)
+                .setKeywordPath(keywordPath)
+                .setSensitivity(0.7f)
+                .build(applicationContext, object : PorcupineManagerCallback {
+                    override fun invoke(keywordIndex: Int) {
+                        Log.d(TAG, "Wake word detected!")
+                        broadcastWakeWordDetected()
+                    }
+                })
 
-        } catch (ex: Exception) {
-            ex.printStackTrace()
+            startListening()
+
+        } catch (e: PorcupineException) {
+            Log.e(TAG, "Error initializing Porcupine: ${e.message}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error: ${e.message}")
         }
     }
 
+    // ---------------------------------------------------------
+    private fun broadcastWakeWordDetected() {
+        val intent = Intent("LORACLE_WAKEWORD_HIT")
+        // Set the package to make the broadcast explicit to your app only
+        intent.setPackage("com.example.loracle")
+        sendBroadcast(intent)
+    }
+
+    // ---------------------------------------------------------
+    private fun startListening() {
+        if (!isListening) {
+            try {
+                porcupineManager?.start()
+                isListening = true
+                Log.d(TAG, "Started listening for wake word")
+            } catch (e: PorcupineException) {
+                Log.e(TAG, "Error starting Porcupine: ${e.message}")
+            }
+        }
+    }
+
+    // ---------------------------------------------------------
+    private fun stopListening() {
+        if (isListening) {
+            try {
+                porcupineManager?.stop()
+                isListening = false
+                Log.d(TAG, "Stopped listening for wake word")
+            } catch (e: PorcupineException) {
+                Log.e(TAG, "Error stopping Porcupine: ${e.message}")
+            }
+        }
+    }
+
+    // ---------------------------------------------------------
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        return START_STICKY   // ensures service restarts if killed
+        return START_STICKY
     }
 
+    // ---------------------------------------------------------
+    override fun onBind(intent: Intent?): IBinder {
+        return Binder()
+    }
+
+    // ---------------------------------------------------------
     override fun onDestroy() {
-        porcupineManager?.stop()
-        porcupineManager?.delete()
         super.onDestroy()
+        stopListening()
+        porcupineManager?.delete()
+        Log.d(TAG, "WakeWordService destroyed")
     }
-
-    override fun onBind(intent: Intent?): IBinder? = null
-
-    override fun onTaskRemoved(rootIntent: Intent?) {
-    val broadcastIntent = Intent("RESTART_WAKEWORD_SERVICE")
-    sendBroadcast(broadcastIntent)
-    super.onTaskRemoved(rootIntent)
 }
-}
-

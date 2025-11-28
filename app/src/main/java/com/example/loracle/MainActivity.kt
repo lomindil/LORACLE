@@ -1,17 +1,17 @@
 package com.example.loracle
 
-
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.*
-import com.example.loracle.R
 import com.example.loracle.managers.SpeechRecognizerManager
 import com.example.loracle.managers.TTSManager
 import com.example.loracle.network.OllamaClient
 import android.content.Intent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 import com.example.loracle.services.WakeWordService
-
-
+import android.os.Build
 
 class MainActivity : AppCompatActivity() {
 
@@ -25,53 +25,68 @@ class MainActivity : AppCompatActivity() {
 
     private val currentResponse = StringBuilder()
 
-
     private val REQUEST_AUDIO = 1
 
-override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_main)
-
-    // Start wake-word service
-    val serviceIntent = Intent(this, WakeWordService::class.java)
-    startForegroundService(serviceIntent)
-
-
-    // 1. Ask for permission BEFORE anything else
-    if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
-        != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-
-        requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), REQUEST_AUDIO)
-        return
+    // ---------------------------------------------------------
+    // Wake word receiver
+    // ---------------------------------------------------------
+    private val wakeWordReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "LORACLE_WAKEWORD_HIT") {
+                speech.startListening()
+            }
+        }
     }
 
-    // 2. Initialize UI
-    edtInput = findViewById(R.id.edtUserInput)
-    txtOutput = findViewById(R.id.txtResponse)
-    btnMic = findViewById(R.id.btnMic)
-    btnSend = findViewById(R.id.btnSend)
+    // ---------------------------------------------------------
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
-    // 3. Initialize TTS
-    tts = TTSManager(this)
-
-    // 4. Initialize SpeechRecognizer AFTER permission
-    speech = SpeechRecognizerManager(this, object : SpeechRecognizerManager.Callback {
-        override fun onResult(text: String) {
-            edtInput.setText(text)
-            sendToOllama(text)
+        // Start wake-word listener service
+        val serviceIntent = Intent(this, WakeWordService::class.java)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
         }
 
-        override fun onError(error: String) {
-            txtOutput.text = error
+        // Audio permission
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+
+            requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), REQUEST_AUDIO)
+        } else {
+            initializeApp()
         }
-    })
+    }
 
-    // 5. Button listeners
-    btnMic.setOnClickListener { speech.startListening() }
-    btnSend.setOnClickListener { sendToOllama(edtInput.text.toString()) }
-}
+    // ---------------------------------------------------------
+    private fun initializeApp() {
 
+        edtInput = findViewById(R.id.edtUserInput)
+        txtOutput = findViewById(R.id.txtResponse)
+        btnMic = findViewById(R.id.btnMic)
+        btnSend = findViewById(R.id.btnSend)
 
+        tts = TTSManager(this)
+
+        speech = SpeechRecognizerManager(this, object : SpeechRecognizerManager.Callback {
+            override fun onResult(text: String) {
+                edtInput.setText(text)
+                sendToOllama(text)
+            }
+
+            override fun onError(error: String) {
+                txtOutput.text = error
+            }
+        })
+
+        btnMic.setOnClickListener { speech.startListening() }
+        btnSend.setOnClickListener { sendToOllama(edtInput.text.toString()) }
+    }
+
+    // ---------------------------------------------------------
     private fun sendToOllama(text: String) {
         txtOutput.text = "Thinking…"
         currentResponse.clear()
@@ -92,27 +107,46 @@ override fun onCreate(savedInstanceState: Bundle?) {
         })
     }
 
+    // ---------------------------------------------------------
+    override fun onResume() {
+        super.onResume()
+
+        // FIX: Add the export flag for Android 13+
+        val filter = IntentFilter("LORACLE_WAKEWORD_HIT")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(wakeWordReceiver, filter, RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(wakeWordReceiver, filter)
+        }
+    }
+
+    override fun onPause() {
+        unregisterReceiver(wakeWordReceiver)
+        super.onPause()
+    }
+
     override fun onDestroy() {
-        super.onDestroy()
         tts.shutdown()
+        super.onDestroy()
     }
-    
+
+    // ---------------------------------------------------------
     override fun onRequestPermissionsResult(
-    requestCode: Int,
-    permissions: Array<out String>,
-    grantResults: IntArray
-) {
-    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-    if (requestCode == REQUEST_AUDIO &&
-        grantResults.isNotEmpty() &&
-        grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-        
-        recreate() // Restart activity so SpeechRecognizer can initialize
-    } else {
-        Toast.makeText(this, "Audio permission required!", Toast.LENGTH_LONG).show()
-        finish()
+        if (requestCode == REQUEST_AUDIO &&
+            grantResults.isNotEmpty() &&
+            grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+
+            initializeApp()
+
+        } else {
+            Toast.makeText(this, "Audio permission required!", Toast.LENGTH_LONG).show()
+            finish()
+        }
     }
-}
-
 }
