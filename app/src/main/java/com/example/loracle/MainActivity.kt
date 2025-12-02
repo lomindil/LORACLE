@@ -69,18 +69,29 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupDrawer() {
         drawerLayout = findViewById(R.id.drawer_layout)
-        toggle = ActionBarDrawerToggle(this, drawerLayout, R.string.drawer_open, R.string.drawer_close)
+        toggle = ActionBarDrawerToggle(
+            this,
+            drawerLayout,
+            findViewById(R.id.toolbar),   // IMPORTANT
+            R.string.drawer_open,
+            R.string.drawer_close
+        )
+
         drawerLayout.addDrawerListener(toggle)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         toggle.syncState()
     }
 
     private fun setupViews() {
+        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+
         edtInput = findViewById(R.id.edtUserInput)
         btnMic = findViewById(R.id.btnMic)
         btnSend = findViewById(R.id.btnSend)
         txtThinking = findViewById(R.id.txtThinking)
     }
+
 
     private fun setupChatList() {
         rvMessages = findViewById(R.id.rvMessages)
