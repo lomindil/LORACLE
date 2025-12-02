@@ -13,7 +13,7 @@ import java.net.URL
 object OllamaClient {
 
     // IMPORTANT: must include full endpoint
-    private const val OLLAMA_URL = "https://valene-downier-melodie.ngrok-free.dev/api/generate"
+    private const val OLLAMA_URL = "https://77aca4909215.ngrok-free.app/api/generate"
 
     interface StreamCallback {
         fun onToken(token: String)
@@ -27,14 +27,14 @@ object OllamaClient {
         Thread {
             try {
                 // Load entire chat session as context
-                val history = ChatSessionManager.getContext()
+                //val history = ChatSessionManager.getContext()
 
                 // Build final prompt for LLM
-                val finalPrompt = "$history\nUSER: $message\nASSISTANT:"
+                val finalPrompt = message
 
                 // Build JSON request
                 val req = JSONObject().apply {
-                    put("model", "qwen2.5:1.5b")
+                    put("model", "gemma:2b")
                     put("prompt", finalPrompt)
                     put("stream", true)
                 }

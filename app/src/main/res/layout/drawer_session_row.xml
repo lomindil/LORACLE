@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <TextView
+        android:id="@+id/txtSessionTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Session Title"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:textColor="@android:color/white"/>
+
+    <TextView
+        android:id="@+id/txtSessionLastMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Last message preview"
+        android:textSize="14sp"
+        android:textColor="#cccccc"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:paddingTop="4dp" />
+</LinearLayout>
+
+
