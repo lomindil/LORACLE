@@ -13,7 +13,7 @@ import java.net.URL
 object OllamaClient {
 
     // IMPORTANT: must include full endpoint
-    private const val OLLAMA_URL = "https://13840b0e6045.ngrok-free.app/api/generate"
+    private const val OLLAMA_URL = "NO Need Now :)"
 
     interface StreamCallback {
         fun onToken(token: String)

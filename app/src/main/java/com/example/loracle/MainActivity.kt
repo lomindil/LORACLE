@@ -12,6 +12,7 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
+import android.widget.ProgressBar
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
@@ -23,6 +24,13 @@ import com.example.loracle.managers.SpeechRecognizerManager
 import com.example.loracle.managers.TTSManager
 import com.example.loracle.models.SessionPreview
 import com.example.loracle.network.OllamaClient
+import com.example.loracle.managers.ModelDownloader
+import android.llama.cpp.LLamaAndroid
+import com.example.loracle.llm.LocalLLM
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import androidx.appcompat.app.AlertDialog
 
 import java.util.*
 
@@ -58,6 +66,22 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        val downloader = ModelDownloader(
+            this,
+            modelUrl = "https://huggingface.co/DravenBlack/gemma-3-1b-it-Q4_K_M-GGUF/resolve/main/gemma-3-1b-it-q4_k_m.gguf",
+            modelFilename = "gemma-3-1b-it-q4_k_m.gguf"
+        )
+
+        val modelFile = downloader.modelFile()
+
+        if (modelFile.exists()) {
+            CoroutineScope(Dispatchers.Main).launch {
+                LocalLLM.loadModel(modelFile.absolutePath)
+            }
+        } else {
+            showModelDownloadDialog(downloader)
+        }
+
         // IMPORTANT: Ensure ChatSessionManager is initialized
 
         ChatSessionManager.init(this)
@@ -69,6 +93,40 @@ class MainActivity : AppCompatActivity() {
 
         askAudioPermission()
     }
+
+    private fun showModelDownloadDialog(downloader: ModelDownloader) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_model_download, null)
+        val progressBar = dialogView.findViewById<ProgressBar>(R.id.progressBar)
+        val progressText = dialogView.findViewById<TextView>(R.id.tvProgress)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+
+        dialog.show()
+
+        downloader.download(
+            onProgress = { percent ->
+                progressBar.progress = percent
+                progressText.text = "$percent%"
+            },
+            onDone = { ok ->
+                dialog.dismiss()
+                if (ok) {
+                    val modelPath = downloader.modelFile().absolutePath
+                    CoroutineScope(Dispatchers.Main).launch {
+                        LocalLLM.loadModel(modelPath)
+                    }
+
+                    Toast.makeText(this, "Model loaded", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Download failed", Toast.LENGTH_LONG).show()
+                }
+            }
+        )
+    }
+
 
     private fun setupDrawer() {
         drawerLayout = findViewById(R.id.drawer_layout)
@@ -223,8 +281,20 @@ class MainActivity : AppCompatActivity() {
         ChatSessionManager.addUserMessage(text)
 
         showThinking(true)
-        sendToOllama(text)
+        sendToLocalModel(text)
     }
+
+    private fun sendToLocalModel(text: String) {
+        CoroutineScope(Dispatchers.Main).launch {
+            LocalLLM.sendMessage(
+                text,
+                onToken = { token -> addBotChunk(token) },
+                onDone = { finalizeBotResponse() },
+                onError = { err -> addSystemMessage("Error: $err") }
+            )
+        }
+    }
+
 
     private fun addBotChunk(chunk: String) {
         currentResponse.append(chunk)
