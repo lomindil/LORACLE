@@ -14,6 +14,8 @@ class SpeechRecognizerManager(
 ) {
 
     interface Callback {
+        fun onListeningStarted()
+        fun onListeningEnded()
         fun onResult(text: String)
         fun onError(error: String)
     }
@@ -28,18 +30,31 @@ class SpeechRecognizerManager(
     init {
         recognizer.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {}
-            override fun onBeginningOfSpeech() {}
+
+            override fun onBeginningOfSpeech() {
+                callback.onListeningStarted()
+            }
+
             override fun onRmsChanged(rmsdB: Float) {}
+
             override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() {}
+
+            override fun onEndOfSpeech() {
+                callback.onListeningEnded()
+            }
+
             override fun onPartialResults(partialResults: Bundle?) {}
+
             override fun onEvent(eventType: Int, params: Bundle?) {}
 
             override fun onError(error: Int) {
                 callback.onError("Speech error: $error")
+                callback.onListeningEnded()   // restore mic on error too
             }
 
             override fun onResults(results: Bundle?) {
+                callback.onListeningEnded()   // restore mic animation on final result
+
                 val text = results
                     ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     ?.firstOrNull()
@@ -47,10 +62,19 @@ class SpeechRecognizerManager(
                 if (text != null) callback.onResult(text)
             }
         })
+
     }
 
     fun startListening() {
         recognizer.startListening(intent)
+    }
+
+    fun onBeginningOfSpeech() {
+        callback.onListeningStarted()
+    }
+
+    fun onEndOfSpeech() {
+        callback.onListeningEnded()
     }
 
     fun destroy() {

@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.MenuItem
 import android.view.View
 import android.widget.EditText
@@ -134,17 +135,34 @@ class MainActivity : AppCompatActivity() {
         tts = TTSManager(this)
 
         speech = SpeechRecognizerManager(this, object : SpeechRecognizerManager.Callback {
+            override fun onListeningStarted() {
+
+                    animateMicListening(true)
+
+            }
+
+            override fun onListeningEnded() {
+
+                    animateMicListening(false)
+
+            }
+
             override fun onResult(text: String) {
                 edtInput.setText(text)
                 sendUserMessage(text)
             }
 
             override fun onError(error: String) {
+                Log.e("SPEECH", "Error code: $error")
                 addSystemMessage("Speech error: $error")
+                animateMicListening(false)
             }
         })
 
-        btnMic.setOnClickListener { speech.startListening() }
+        btnMic.setOnClickListener {
+           // animateMicListening(true)
+            speech.startListening()
+        }
 
         btnSend.setOnClickListener {
             val text = edtInput.text.toString().trim()
@@ -156,6 +174,17 @@ class MainActivity : AppCompatActivity() {
 
         // Start a new session on fresh launch
         startNewSession()
+    }
+    private fun animateMicListening(isListening: Boolean) {
+        if (isListening) {
+            btnMic.scaleX = 1.25f
+            btnMic.scaleY = 1.25f
+            btnMic.setColorFilter(resources.getColor(android.R.color.holo_red_light))
+        } else {
+            btnMic.scaleX = 1f
+            btnMic.scaleY = 1f
+            btnMic.setColorFilter(null)
+        }
     }
 
     private fun startNewSession() {
