@@ -23,6 +23,7 @@ import com.example.loracle.managers.SpeechRecognizerManager
 import com.example.loracle.managers.TTSManager
 import com.example.loracle.models.SessionPreview
 import com.example.loracle.network.OllamaClient
+
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
@@ -58,6 +59,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         // IMPORTANT: Ensure ChatSessionManager is initialized
+
         ChatSessionManager.init(this)
 
         setupDrawer()

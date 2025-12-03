@@ -21,4 +21,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Loracle"
 include(":app")
+include(":app", ":llama")
  
