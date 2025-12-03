@@ -1,5 +1,12 @@
 package com.example.loracle
 
+
+
+import android.app.AlarmManager
+import android.content.Context
+import android.os.Build
+import android.provider.Settings
+import android.net.Uri
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -22,6 +29,8 @@ import com.example.loracle.managers.SpeechRecognizerManager
 import com.example.loracle.managers.TTSManager
 import com.example.loracle.models.SessionPreview
 import com.example.loracle.network.OllamaClient
+import com.example.loracle.managers.AlarmAgent
+
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
@@ -65,6 +74,27 @@ class MainActivity : AppCompatActivity() {
         setupSessionList()
 
         askAudioPermission()
+    }
+
+    // Inside MainActivity.kt
+
+    private fun checkAndRequestExactAlarmPermission() {
+        val alarmManager = getSystemService(android.content.Context.ALARM_SERVICE) as AlarmManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (!alarmManager.canScheduleExactAlarms()) {
+                Toast.makeText(
+                    this, 
+                    "Exact alarm access required for reliable alarms.", 
+                    Toast.LENGTH_LONG
+                ).show()
+                
+                // Direct user to the system settings page to grant the permission
+                val intent = android.content.Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                intent.data = Uri.fromParts("package", packageName, null)
+                startActivity(intent)
+            }
+        }
     }
 
     private fun setupDrawer() {
@@ -188,6 +218,18 @@ class MainActivity : AppCompatActivity() {
         messages.add(msg)
         chatAdapter.submitList(ArrayList(messages))
         scrollToBottom()
+        
+        println("User Message:")
+        println(text)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                checkAndRequestExactAlarmPermission()
+            }
+        if (AlarmAgent.tryHandleAlarm(this, text)) {
+            println("Checking alarm agent")
+            addSystemMessage("⏰ Alarm set!")
+            tts.speak("Your alarm has been set.")
+            return
+        }
 
         ChatSessionManager.addUserMessage(text)
 
